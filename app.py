@@ -1,3 +1,5 @@
+import base64
+from io import BytesIO
 from PIL import Image
 import requests
 import streamlit as st
@@ -7,7 +9,7 @@ st.set_page_config(
     page_title="AI Neural Glow-Up & Chat", page_icon="🤖", layout="centered"
 )
 
-# Stile CSS cyberpunk personalizzato
+# Stile CSS cyberpunk avanzato e animazione di scansione laser
 st.markdown("""
     <style>
     .stButton>button {
@@ -22,13 +24,68 @@ st.markdown("""
     .stButton>button:hover {
         opacity: 0.85;
     }
+    
+    /* Animazione del raggio laser di scansione */
+    @keyframes scanline {
+        0% { top: 0%; }
+        50% { top: 100%; }
+        100% { top: 0%; }
+    }
+    
+    .scanner-container {
+        position: relative;
+        width: 100%;
+        max-width: 400px;
+        margin: 0 auto;
+        border-radius: 15px;
+        overflow: hidden;
+        border: 2px solid #00E676;
+        box-shadow: 0 0 20px rgba(0, 230, 118, 0.4);
+    }
+    
+    .scanner-container img {
+        width: 100%;
+        display: block;
+    }
+    
+    .laser {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: #00E676;
+        box-shadow: 0 0 15px #00E676, 0 0 30px #00E676;
+        animation: scanline 2s ease-in-out infinite;
+    }
+    
+    .grid-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: linear-gradient(rgba(0, 230, 118, 0.2) 1px, transparent 1px),
+                          linear-gradient(90deg, rgba(0, 230, 118, 0.2) 1px, transparent 1px);
+        background-size: 25px 25px;
+        pointer-events: none;
+    }
     </style>
 """, unsafe_allow_html=True)
 
+
+# Funzione per convertire l'immagine in base64 da inserire nell'HTML animato
+def get_image_base64(img):
+  buffered = BytesIO()
+  img.save(buffered, format="JPEG")
+  img_str = base64.b64encode(buffered.getvalue()).decode()
+  return f"data:image/jpeg;base64,{img_str}"
+
+
 st.title("🤖 AI Neural Glow-Up & Style Coach")
 st.markdown(
-    "Carica la tua foto migliore, genera il tuo piano di miglioramento"
-    " personalizzato e chatta liberamente con l'IA per qualsiasi consiglio!"
+    "Carica la tua foto migliore, avvia la scansione biometrica e chatta"
+    " liberamente con l'IA!"
 )
 
 # Selezione della modalità di caricamento foto
@@ -52,72 +109,94 @@ else:
   if camera_file is not None:
     uploaded_image = Image.open(camera_file)
 
-# Se l'immagine è stata caricata o scattata
+# Inizializzazione della memoria di sessione
+if "chat_history" not in st.session_state:
+  st.session_state.chat_history = []
+if "initial_analysis" not in st.session_state:
+  st.session_state.initial_analysis = ""
+
+# Se l'immagine è presente
 if uploaded_image is not None:
-  st.image(
-      uploaded_image, caption="Foto acquisita con successo", use_container_width=True
-  )
+  img_b64 = get_image_base64(uploaded_image)
 
-  # Inizializzazione della memoria di sessione per la chat e l'analisi
-  if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-  if "initial_analysis" not in st.session_state:
-    st.session_state.initial_analysis = ""
-
-  # Pulsante per avviare l'analisi iniziale se non è stata ancora fatta
+  # Mostriamo l'anteprima normale se l'analisi non è ancora avvenuta o è completata
   if not st.session_state.initial_analysis:
-    if st.button("🚀 Avvia Analisi Neurale e Glow-Up"):
-      with st.status(
-          "🔍 Connessione al cluster neurale di Pollinations...", expanded=True
-      ) as status:
-        st.write(
-            "Elaborazione fisionomica e creazione del piano di"
-            " miglioramento..."
+    st.markdown(
+        f"""
+        <div class="scanner-container">
+            <img src="{img_b64}">
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.write("")
+    if st.button("🚀 Avvia Scansione Neurale e Glow-Up"):
+      st.session_state.scanning = True
+      st.rerurn()
+
+  # Se l'utente ha premuto il pulsante di scansione ma non ha ancora l'analisi
+  if (
+      "scanning" in st.session_state
+      and st.session_state.scanning
+      and not st.session_state.initial_analysis
+  ):
+    # Mostriamo l'animazione di scansione laser in corso
+    placeholder_anim = st.empty()
+    placeholder_anim.markdown(
+        f"""
+        <div style="text-align: center; color: #00E676; font-weight: bold; margin-bottom: 10px;">
+            ⚡ Inizializzazione scanner cibernetico e mappatura geometrica facciale...
+        </div>
+        <div class="scanner-container">
+            <div class="grid-overlay"></div>
+            <div class="laser"></div>
+            <img src="{img_b64}">
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    try:
+      prompt_base = (
+          "Genera un voto onesto sulla possibbile attrazione"
+          "Agisci come un consulente di immagine, stile, skincare e grooming"
+          " personale di livello professionale. Adotta un tono cyberpunk,"
+          " futuristico, motivazionale e costruttivo. Genera un piano di"
+          " miglioramento completo (Glow-Up) strutturato con: 1. Analisi"
+          " fisionomica e strutturale generale. 2. Consigli avanzati di"
+          " skincare, taglio capelli e postura. 3. Piano d'azione pratico"
+          " settimanale. Rispondi in italiano con una formattazione pulita ed"
+          " emoji."
+      )
+
+      url = (
+          "https://text.pollinations.ai/"
+          + requests.utils.quote(prompt_base)
+          + "?model=openai"
+      )
+      response = requests.get(url, timeout=35)
+
+      if response.status_code == 200:
+        st.session_state.initial_analysis = response.text
+        st.session_state.scanning = False
+        placeholder_anim.empty()
+        st.rerurn()
+      else:
+        st.error(
+            f"Errore di risposta dal server (Status {response.status_code})."
         )
-        try:
-          prompt_base = (
-              "Genera un voto onesto sull'attrazione del soggetto"
-              "Agisci come un consulente di immagine, stile, skincare e"
-              " grooming personale di livello professionale. Adotta un tono"
-              " cyberpunk, futuristico, motivazionale e costruttivo. Genera un"
-              " piano di miglioramento completo (Glow-Up) strutturato con: 1."
-              " Analisi fisionomica e strutturale generale. 2. Consigli"
-              " avanzati di skincare, taglio capelli e postura. 3. Piano"
-              " d'azione pratico settimanale. Rispondi in italiano con una"
-              " formattazione pulita ed emoji."
-          )
+        st.session_state.scanning = False
+    except Exception as e:
+      st.error(f"Tempo scaduto o errore di rete ({e}). Riprova.")
+      st.session_state.scanning = False
 
-          url = (
-              "https://text.pollinations.ai/"
-              + requests.utils.quote(prompt_base)
-              + "?model=openai"
-          )
-          response = requests.get(url, timeout=35)
-
-          if response.status_code == 200:
-            st.session_state.initial_analysis = response.text
-            status.update(
-                label="✨ Analisi completata con successo!",
-                state="complete",
-                expanded=False,
-            )
-            st.rerun()
-          else:
-            status.update(label="❌ Errore del server", state="error")
-            st.error(
-                f"Errore di risposta dal server (Status {response.status_code})."
-                " Riprova tra un istante."
-            )
-
-        except Exception as e:
-          status.update(label="❌ Errore di connessione", state="error")
-          st.error(
-              f"Tempo scaduto o errore di rete ({e}). Riprova a premere il"
-              " pulsante."
-          )
-
-  # Se l'analisi iniziale è presente, mostrala e attiva la chat interattiva
+  # Se l'analisi iniziale è completata, mostra foto statica, piano e chat
   if st.session_state.initial_analysis:
+    st.image(
+        uploaded_image,
+        caption="Foto scannerizzata con successo",
+        use_container_width=True,
+    )
     st.markdown("---")
     st.markdown("## 📊 Piano di Glow-Up Ufficiale")
     st.markdown(st.session_state.initial_analysis)
@@ -129,12 +208,10 @@ if uploaded_image is not None:
         " allenamento? Scrivi qui sotto!"
     )
 
-    # Mostra la cronologia della chat
     for message in st.session_state.chat_history:
       with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-    # Casella di input per la chat in basso
     if prompt_utente := st.chat_input("Fai una domanda all'IA..."):
       st.session_state.chat_history.append(
           {"role": "user", "content": prompt_utente}
