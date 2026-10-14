@@ -74,7 +74,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# Funzione per convertire l'immagine in base64 da inserire nell'HTML animato
+# Funzione per convertire l'immagine in base64 da inviare all'IA visiva
 def get_image_base64(img):
   buffered = BytesIO()
   img.save(buffered, format="JPEG")
@@ -84,8 +84,8 @@ def get_image_base64(img):
 
 st.title("🤖 AI Neural Glow-Up & Style Coach")
 st.markdown(
-    "Carica la tua foto migliore, avvia la scansione biometrica e chatta"
-    " liberamente con l'IA!"
+    "Carica la tua foto reale, avvia la scansione biometrica visiva e chatta"
+    " con l'IA!"
 )
 
 # Selezione della modalità di caricamento foto
@@ -119,7 +119,7 @@ if "initial_analysis" not in st.session_state:
 if uploaded_image is not None:
   img_b64 = get_image_base64(uploaded_image)
 
-  # Mostriamo l'anteprima normale se l'analisi non è ancora avvenuta o è completata
+  # Mostriamo l'anteprima normale se l'analisi non è ancora avvenuta
   if not st.session_state.initial_analysis:
     st.markdown(
         f"""
@@ -134,18 +134,17 @@ if uploaded_image is not None:
       st.session_state.scanning = True
       st.rerun()
 
-  # Se l'utente ha premuto il pulsante di scansione ma non ha ancora l'analisi
+  # Se l'utente ha premuto il pulsante di scansione
   if (
       "scanning" in st.session_state
       and st.session_state.scanning
       and not st.session_state.initial_analysis
   ):
-    # Mostriamo l'animazione di scansione laser in corso
     placeholder_anim = st.empty()
     placeholder_anim.markdown(
         f"""
         <div style="text-align: center; color: #00E676; font-weight: bold; margin-bottom: 10px;">
-            ⚡ Inizializzazione scanner cibernetico e mappatura geometrica facciale...
+            ⚡ Analisi visiva e mappatura geometrica in corso...
         </div>
         <div class="scanner-container">
             <div class="grid-overlay"></div>
@@ -157,24 +156,47 @@ if uploaded_image is not None:
     )
 
     try:
-      prompt_base = (
-          "Genera un voto onesto sulla possibbile attrazione che vada da 1 a 10"
-          "Agisci come un consulente di immagine, stile, skincare e grooming"
-          " personale di livello professionale. Adotta un tono cyberpunk,"
-          " futuristico, motivazionale e costruttivo. Genera un piano di"
-          " miglioramento completo (Glow-Up) strutturato con: 1. Analisi"
-          " fisionomica e strutturale generale. 2. Consigli avanzati di"
-          " skincare, taglio capelli e postura. 3. Piano d'azione pratico"
-          " settimanale. Rispondi in italiano con una formattazione pulita ed"
-          " emoji."
+      # Invio della foto reale tramite richiesta POST multimodale
+      payload = {
+          "model": "openai",
+          "messages": [{
+              "role": "user",
+              "content": [
+                  {
+                      "type": "text",
+                      "text": (
+                          "Genera un voto onesto sulla possibbile attrazione che vada da 1 a 10"
+                          "Agisci come un consulente di immagine, stile,"
+                          " skincare e grooming personale di livello"
+                          " professionale. Guarda attentamente la foto del viso"
+                          " fornita e dai un voto reale (da 1 a 10 motivato) basato"
+                          " sui lineamenti effettivi, forma del viso, pelle e"
+                          " capelli visibili nell'immagine. Adotta un tono"
+                          " cyberpunk, futuristico, motivazionale e"
+                          " costruttivo. Genera un piano di miglioramento"
+                          " completo (Glow-Up) strutturato con: 1. Voto e"
+                          " analisi fisionomica reale della foto. 2. Consigli"
+                          " avanzati di skincare, taglio capelli e postura. 3."
+                          " Piano d'azione pratico settimanale. Rispondi in"
+                          " italiano con una formattazione pulita ed emoji."
+                      ),
+                  },
+                  {"type": "image_url", "image_url": {"url": img_b64}},
+              ],
+          }],
+      }
+
+      response = requests.post(
+          "https://text.pollinations.ai/v1/chat/completions",
+          json=payload,
+          timeout=40,
       )
 
-      # Endpoint pulito senza parametri a pagamento
-      url = "https://text.pollinations.ai/" + requests.utils.quote(prompt_base)
-      response = requests.get(url, timeout=35)
-
       if response.status_code == 200:
-        st.session_state.initial_analysis = response.text
+        data = response.json()
+        st.session_state.initial_analysis = data["choices"][0]["message"][
+            "content"
+        ]
         st.session_state.scanning = False
         placeholder_anim.empty()
         st.rerun()
@@ -187,11 +209,11 @@ if uploaded_image is not None:
       st.error(f"Tempo scaduto o errore di rete ({e}). Riprova.")
       st.session_state.scanning = False
 
-  # Se l'analisi iniziale è completata, mostra foto statica, piano e chat
+  # Se l'analisi è completata, mostra i risultati e la chat
   if st.session_state.initial_analysis:
     st.image(
         uploaded_image,
-        caption="Foto scannerizzata con successo",
+        caption="Foto analizzata con successo",
         use_container_width=True,
     )
     st.markdown("---")
@@ -219,22 +241,30 @@ if uploaded_image is not None:
       with st.chat_message("assistant"):
         with st.spinner("L'IA sta elaborando la risposta..."):
           try:
-            chat_prompt = (
-                f"Contesto della consulenza precedente: L'utente ha ricevuto"
-                f" questo piano di glow-up:"
-                f" {st.session_state.initial_analysis[:400]}...\n\nDomanda"
-                f" attuale dell'utente: {prompt_utente}\n\nRispondi in"
-                " italiano come un esperto consulente di stile cyberpunk,"
-                " dando risposte pratiche e dirette."
+            chat_payload = {
+                "model": "openai",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Sei un esperto consulente di stile cyberpunk. L'utente"
+                            " ha ricevuto questo piano di glow-up basato sulla sua"
+                            " foto reale:"
+                            f" {st.session_state.initial_analysis[:400]}..."
+                        ),
+                    },
+                    {"role": "user", "content": prompt_utente},
+                ],
+            }
+            chat_resp = requests.post(
+                "https://text.pollinations.ai/v1/chat/completions",
+                json=chat_payload,
+                timeout=30,
             )
-            chat_url = (
-                "https://text.pollinations.ai/"
-                + requests.utils.quote(chat_prompt)
-            )
-            chat_resp = requests.get(chat_url, timeout=30)
 
             if chat_resp.status_code == 200:
-              risposta_ia = chat_resp.text
+              chat_data = chat_resp.json()
+              risposta_ia = chat_data["choices"][0]["message"]["content"]
               st.markdown(risposta_ia)
               st.session_state.chat_history.append(
                   {"role": "assistant", "content": risposta_ia}
