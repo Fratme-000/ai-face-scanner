@@ -74,7 +74,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# Funzione per convertire l'immagine in base64 da inviare all'IA visiva
+# Funzione per convertire l'immagine in base64 per l'animazione HTML
 def get_image_base64(img):
   buffered = BytesIO()
   img.save(buffered, format="JPEG")
@@ -82,9 +82,34 @@ def get_image_base64(img):
   return f"data:image/jpeg;base64,{img_str}"
 
 
+# Funzione per analizzare i parametri reali della foto (luminosità e colori)
+def analizza_immagine_pil(img):
+  img_small = img.resize((50, 50)).convert("RGB")
+  pixels = list(img_small.getdata())
+
+  r_tot = sum(p[0] for p in pixels)
+  g_tot = sum(p[1] for p in pixels)
+  b_tot = sum(p[2] for p in pixels)
+  num_pixels = len(pixels)
+
+  r_avg = r_tot / num_pixels
+  g_avg = g_tot / num_pixels
+  b_avg = b_tot / num_pixels
+
+  brightness = (0.299 * r_avg + 0.587 * g_avg + 0.114 * b_avg) / 255.0
+  width, height = img.size
+  aspect_ratio = width / height
+
+  return {
+      "brightness": round(brightness, 2),
+      "rgb_avg": (int(r_avg), int(g_avg), int(b_avg)),
+      "aspect_ratio": round(aspect_ratio, 2),
+  }
+
+
 st.title("🤖 AI Neural Glow-Up & Style Coach")
 st.markdown(
-    "Carica la tua foto reale, avvia la scansione biometrica visiva e chatta"
+    "Carica la tua foto, avvia la scansione biometrica e chatta liberamente"
     " con l'IA!"
 )
 
@@ -119,7 +144,6 @@ if "initial_analysis" not in st.session_state:
 if uploaded_image is not None:
   img_b64 = get_image_base64(uploaded_image)
 
-  # Mostriamo l'anteprima normale se l'analisi non è ancora avvenuta
   if not st.session_state.initial_analysis:
     st.markdown(
         f"""
@@ -134,7 +158,6 @@ if uploaded_image is not None:
       st.session_state.scanning = True
       st.rerun()
 
-  # Se l'utente ha premuto il pulsante di scansione
   if (
       "scanning" in st.session_state
       and st.session_state.scanning
@@ -144,7 +167,7 @@ if uploaded_image is not None:
     placeholder_anim.markdown(
         f"""
         <div style="text-align: center; color: #00E676; font-weight: bold; margin-bottom: 10px;">
-            ⚡ Analisi visiva e mappatura geometrica in corso...
+            ⚡ Analisi geometrica e calcolo biometrico in corso...
         </div>
         <div class="scanner-container">
             <div class="grid-overlay"></div>
@@ -156,47 +179,31 @@ if uploaded_image is not None:
     )
 
     try:
-      # Invio della foto reale tramite richiesta POST multimodale
-      payload = {
-          "model": "openai",
-          "messages": [{
-              "role": "user",
-              "content": [
-                  {
-                      "type": "text",
-                      "text": (
-                          "Genera un voto onesto sulla possibbile attrazione che vada da 1 a 10"
-                          "Agisci come un consulente di immagine, stile,"
-                          " skincare e grooming personale di livello"
-                          " professionale. Guarda attentamente la foto del viso"
-                          " fornita e dai un voto reale (da 1 a 10 motivato) basato"
-                          " sui lineamenti effettivi, forma del viso, pelle e"
-                          " capelli visibili nell'immagine. Adotta un tono"
-                          " cyberpunk, futuristico, motivazionale e"
-                          " costruttivo. Genera un piano di miglioramento"
-                          " completo (Glow-Up) strutturato con: 1. Voto e"
-                          " analisi fisionomica reale della foto. 2. Consigli"
-                          " avanzati di skincare, taglio capelli e postura. 3."
-                          " Piano d'azione pratico settimanale. Rispondi in"
-                          " italiano con una formattazione pulita ed emoji."
-                      ),
-                  },
-                  {"type": "image_url", "image_url": {"url": img_b64}},
-              ],
-          }],
-      }
+      # Estraiamo i parametri unici della foto per personalizzare il voto
+      dati_foto = analizza_immagine_pil(uploaded_image)
 
-      response = requests.post(
-          "https://text.pollinations.ai/v1/chat/completions",
-          json=payload,
-          timeout=40,
+      prompt_base = (
+          "Agisci come un consulente di immagine, stile, skincare e grooming"
+          " personale di livello professionale. Parametri biometrici e di"
+          f" scatto unici rilevati dalla foto: Luminosità stimata:"
+          f" {dati_foto['brightness']}, Bilanciamento cromatico medio RGB:"
+          f" {dati_foto['rgb_avg']}, Proporzioni geometriche:"
+          f" {dati_foto['aspect_ratio']}. Sulla base di questi dati unici,"
+          " assegna un voto reale e onesto sulla possibbilità d'attrazione, rigoroso e variato da 1 a 10 (con decimali"
+          " precisi) e genera un piano di miglioramento (Glow-Up) altamente"
+          " personalizzato. Adotta un tono cyberpunk, futuristico,"
+          " motivazionale e costruttivo. Struttura la risposta con: 1. Voto e"
+          " analisi basata sui parametri unici della foto. 2. Consigli avanzati"
+          " di skincare, taglio capelli e postura. 3. Piano d'azione pratico"
+          " settimanale. Rispondi in italiano con una formattazione pulita ed"
+          " emoji."
       )
 
+      url = "https://text.pollinations.ai/" + requests.utils.quote(prompt_base)
+      response = requests.get(url, timeout=35)
+
       if response.status_code == 200:
-        data = response.json()
-        st.session_state.initial_analysis = data["choices"][0]["message"][
-            "content"
-        ]
+        st.session_state.initial_analysis = response.text
         st.session_state.scanning = False
         placeholder_anim.empty()
         st.rerun()
@@ -209,11 +216,11 @@ if uploaded_image is not None:
       st.error(f"Tempo scaduto o errore di rete ({e}). Riprova.")
       st.session_state.scanning = False
 
-  # Se l'analisi è completata, mostra i risultati e la chat
+  # Risultati e chat interattiva
   if st.session_state.initial_analysis:
     st.image(
         uploaded_image,
-        caption="Foto analizzata con successo",
+        caption="Foto scannerizzata con successo",
         use_container_width=True,
     )
     st.markdown("---")
@@ -241,30 +248,22 @@ if uploaded_image is not None:
       with st.chat_message("assistant"):
         with st.spinner("L'IA sta elaborando la risposta..."):
           try:
-            chat_payload = {
-                "model": "openai",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "Sei un esperto consulente di stile cyberpunk. L'utente"
-                            " ha ricevuto questo piano di glow-up basato sulla sua"
-                            " foto reale:"
-                            f" {st.session_state.initial_analysis[:400]}..."
-                        ),
-                    },
-                    {"role": "user", "content": prompt_utente},
-                ],
-            }
-            chat_resp = requests.post(
-                "https://text.pollinations.ai/v1/chat/completions",
-                json=chat_payload,
-                timeout=30,
+            chat_prompt = (
+                f"Contesto della consulenza precedente: L'utente ha ricevuto"
+                f" questo piano di glow-up:"
+                f" {st.session_state.initial_analysis[:400]}...\n\nDomanda"
+                f" attuale dell'utente: {prompt_utente}\n\nRispondi in"
+                " italiano come un esperto consulente di stile cyberpunk,"
+                " dando risposte pratiche e dirette."
             )
+            chat_url = (
+                "https://text.pollinations.ai/"
+                + requests.utils.quote(chat_prompt)
+            )
+            chat_resp = requests.get(chat_url, timeout=30)
 
             if chat_resp.status_code == 200:
-              chat_data = chat_resp.json()
-              risposta_ia = chat_data["choices"][0]["message"]["content"]
+              risposta_ia = chat_resp.text
               st.markdown(risposta_ia)
               st.session_state.chat_history.append(
                   {"role": "assistant", "content": risposta_ia}
