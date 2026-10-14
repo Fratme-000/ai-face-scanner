@@ -76,6 +76,7 @@ if uploaded_image is not None:
         )
         try:
           prompt_base = (
+              "Genera un voto onesto sull'attrazione del soggetto"
               "Agisci come un consulente di immagine, stile, skincare e"
               " grooming personale di livello professionale. Adotta un tono"
               " cyberpunk, futuristico, motivazionale e costruttivo. Genera un"
