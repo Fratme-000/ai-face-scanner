@@ -1,13 +1,13 @@
 from PIL import Image
-import google.generativeai as genai
+import requests
 import streamlit as st
 
 # Configurazione della pagina
 st.set_page_config(
-    page_title="AI Face Scanner & Glow-Up", page_icon="🤖", layout="centered"
+    page_title="AI Glow-Up & Style Coach", page_icon="🤖", layout="centered"
 )
 
-# Stile CSS personalizzato per renderlo cyberpunk e professionale
+# Stile CSS cyberpunk personalizzato
 st.markdown("""
     <style>
     .stButton>button {
@@ -25,102 +25,116 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🤖 AI Neural Face Scanner & Glow-Up")
+st.title("🤖 AI Neural Glow-Up & Style Coach")
 st.markdown(
-    "Benvenuto nel sistema di scansione biometrica avanzata. Scatta una foto"
-    " per avviare l'analisi neurale tramite **Google Gemini**."
+    "Carica la tua foto migliore (scattata con la fotocamera nativa del"
+    " telefono o scelta dalla galleria) per generare il tuo piano"
+    " personalizzato con **Pollinations AI**."
 )
 
-# Configurazione chiave API integrata
-with st.sidebar:
-  st.subheader("⚙️ Configurazione")
-  api_key = st.text_input(
-      "Inserisci la tua Gemini API Key",
-      value="AQ.Ab8RN6LltjHDrjBBd-vcF0ypwmAcWhxZSqWs4UuQDHEcH5A0IQ",
-      type="password",
+# Selezione della modalità di caricamento foto
+scelta_foto = st.radio(
+    "Scegli come inserire la foto:",
+    [
+        "📁 Carica dalla galleria / Fotocamera nativa",
+        "📸 Scatta con la webcam del browser",
+    ],
+)
+
+uploaded_image = None
+
+if scelta_foto == "📁 Carica dalla galleria / Fotocamera nativa":
+  file_caricato = st.file_uploader(
+      "Scegli l'immagine dal tuo dispositivo", type=["jpg", "jpeg", "png"]
   )
-  st.markdown(
-      "[Ottieni una chiave gratuita su Google AI"
-      " Studio](https://aistudio.google.com/)"
+  if file_caricato is not None:
+    uploaded_image = Image.open(file_caricato)
+else:
+  camera_file = st.camera_input("Scatta un selfie rapido dal browser")
+  if camera_file is not None:
+    uploaded_image = Image.open(camera_file)
+
+# Se l'immagine è stata caricata/scattata, mostriamo l'anteprima e il form
+if uploaded_image is not None:
+  st.image(
+      uploaded_image,
+      caption="Foto acquisita con successo",
+      use_container_width=True,
   )
 
-# 1. Acquisizione foto tramite la webcam del dispositivo
-camera_image = st.camera_input("📸 Scatta un selfie frontale")
+  with st.form("glow_up_form"):
+    st.subheader("⚙️ Parametri Biometrici e di Stile")
 
-if camera_image is not None:
-  image = Image.open(camera_image)
+    forma_viso = st.selectbox(
+        "Forma del viso principale:",
+        ["Ovale", "Quadrato", "Rotondo", "Allungato/Rettangolare", "A diamante"],
+    )
 
-  col1, col2 = st.columns([1, 1])
-  with col1:
-    st.image(image, caption="Foto acquisita", use_container_width=True)
+    stile_capelli = st.text_input(
+        "Stile/Taglio di capelli attuale:",
+        placeholder="es. corti ai lati, medi mossi...",
+    )
 
-  with col2:
-    st.write("")
-    st.write("")
-    scan_button = st.button("🚀 Avvia Scansione Neurale")
+    obiettivo = st.text_input(
+        "Qual è il tuo obiettivo principale?",
+        placeholder="es. definire la mascella, migliorare la pelle, stile"
+        " cyberpunk...",
+    )
 
-  if scan_button:
-    if not api_key:
-      st.error(
-          "⚠️ Inserisci la tua API Key di Google Gemini nella barra laterale"
-          " per eseguire l'analisi dell'AI!"
-      )
+    submit_button = st.form_submit_button("🚀 Genera Piano di Glow-Up Neurale")
+
+  if submit_button:
+    if not obiettivo:
+      st.warning("⚠️ Per favore, inserisci almeno il tuo obiettivo principale!")
     else:
-      # 2. Animazione di scansione professionale
       with st.status(
-          "🔍 Inizializzazione scanner cibernetico...", expanded=True
+          "🔍 Analisi dei parametri nel cluster neurale...", expanded=True
       ) as status:
-        st.write("Connessione sicura al cluster neurale di Gemini...")
+        st.write("Connessione al motore generativo di Pollinations...")
         import time
 
         time.sleep(1)
-        st.write("Mappatura geometrica dei punti di riferimento facciali...")
-        time.sleep(1.2)
-        st.write(
-            "Elaborazione indice di simmetria, proporzioni e potenziale"
-            " estetico..."
-        )
+        st.write("Elaborazione fisionomica e creazione consigli mirati...")
         time.sleep(1.2)
 
         try:
-          # Configurazione e chiamata a Google Gemini (Multimodale)
-          genai.configure(api_key=api_key)
-          model = genai.GenerativeModel("gemini-3.6-flash")
-
-          prompt = (
-              "Agisci come un sistema di scansione biometrica ed estetica"
-              " avanzata di livello professionale. Adotta un tono leggermente"
-              " cyberpunk, futuristico ma incredibilmente costruttivo,"
-              " motivazionale e rispettoso. Analizza questa foto del viso e"
-              " restituisci:\n1. Un punteggio di attrattiva complessivo da 1.0"
-              " a 10.0 (con un decimale, es. 8.3/10).\n2. Una valutazione"
-              " dettagliata della geometria e della simmetria facciale"
-              " (struttura degli occhi, linea mandibolare/jawline,"
-              " proporzioni).\n3. Un piano di miglioramento personalizzato"
-              " (Glow-Up) con esercizi pratici e consigli mirati (es. postura,"
-              " skincare, cura della barba/capelli o esercizi muscolari).\nUsa"
-              " una formattazione pulita con sezioni, elenchi puntati ed"
-              " emoji."
+          prompt_base = (
+              f"Agisci come un consulente di immagine, stile, skincare e"
+              f" grooming personale di livello professionale. Adotta un tono"
+              f" cyberpunk, futuristico, motivazionale e costruttivo. L'utente"
+              f" ha una forma del viso {forma_viso}, i capelli"
+              f" {stile_capelli}, e il suo obiettivo principale è {obiettivo}."
+              f" Restituisci un piano di miglioramento dettagliato (Glow-Up)"
+              f" strutturato con: 1. Valutazione strutturale della fisionomia."
+              f" 2. Consigli mirati di skincare, taglio capelli e postura. 3."
+              f" Un piano d'azione pratico settimanale. Rispondi in italiano"
+              f" con una formattazione pulita, sezioni ed emoji."
           )
 
-          response = model.generate_content([prompt, image])
-
-          status.update(
-              label="✨ Scansione neurale completata con successo!",
-              state="complete",
-              expanded=False,
+          url = (
+              "https://text.pollinations.ai/"
+              + requests.utils.quote(prompt_base)
+              + "?model=openai"
           )
+          response = requests.get(url, timeout=25)
 
-          # 3. Output dei risultati dell'AI
-          st.markdown("---")
-          st.markdown("## 📊 Esito Ufficiale Scansione Biometrica")
-          st.markdown(response.text)
+          if response.status_code == 200:
+            status.update(
+                label="✨ Piano di Glow-Up generato con successo!",
+                state="complete",
+                expanded=False,
+            )
+
+            st.markdown("---")
+            st.markdown("## 📊 Il Tuo Piano Ufficiale")
+            st.markdown(response.text)
+          else:
+            status.update(label="❌ Errore di comunicazione", state="error")
+            st.error(
+                f"Errore del server (Status {response.status_code}). Riprova"
+                " tra un istante."
+            )
 
         except Exception as e:
-          status.update(
-              label="❌ Errore durante la scansione", state="error"
-          )
-          st.error(
-              f"Si è verificato un errore di comunicazione con l'AI di Google:"
-              f" {e}"
-          )
+          status.update(label="❌ Errore di connessione", state="error")
+          st.error(f"Si è verificato un errore di rete: {e}")
