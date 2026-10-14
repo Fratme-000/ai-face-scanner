@@ -132,7 +132,7 @@ if uploaded_image is not None:
     st.write("")
     if st.button("🚀 Avvia Scansione Neurale e Glow-Up"):
       st.session_state.scanning = True
-      st.rerurn()
+      st.rerun()
 
   # Se l'utente ha premuto il pulsante di scansione ma non ha ancora l'analisi
   if (
@@ -158,7 +158,7 @@ if uploaded_image is not None:
 
     try:
       prompt_base = (
-          "Genera un voto onesto sulla possibbile attrazione"
+          "Genera un voto onesto sulla possibbile attrazione che vada da 1 a 10"
           "Agisci come un consulente di immagine, stile, skincare e grooming"
           " personale di livello professionale. Adotta un tono cyberpunk,"
           " futuristico, motivazionale e costruttivo. Genera un piano di"
@@ -180,7 +180,7 @@ if uploaded_image is not None:
         st.session_state.initial_analysis = response.text
         st.session_state.scanning = False
         placeholder_anim.empty()
-        st.rerurn()
+        st.rerun()
       else:
         st.error(
             f"Errore di risposta dal server (Status {response.status_code})."
