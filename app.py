@@ -169,11 +169,8 @@ if uploaded_image is not None:
           " emoji."
       )
 
-      url = (
-          "https://text.pollinations.ai/"
-          + requests.utils.quote(prompt_base)
-          + "?model=openai"
-      )
+      # Endpoint pulito senza parametri a pagamento
+      url = "https://text.pollinations.ai/" + requests.utils.quote(prompt_base)
       response = requests.get(url, timeout=35)
 
       if response.status_code == 200:
@@ -233,7 +230,6 @@ if uploaded_image is not None:
             chat_url = (
                 "https://text.pollinations.ai/"
                 + requests.utils.quote(chat_prompt)
-                + "?model=openai"
             )
             chat_resp = requests.get(chat_url, timeout=30)
 
