@@ -4,7 +4,7 @@ import streamlit as st
 
 # Configurazione della pagina
 st.set_page_config(
-    page_title="AI Glow-Up & Style Coach", page_icon="🤖", layout="centered"
+    page_title="AI Neural Glow-Up & Chat", page_icon="🤖", layout="centered"
 )
 
 # Stile CSS cyberpunk personalizzato
@@ -27,9 +27,8 @@ st.markdown("""
 
 st.title("🤖 AI Neural Glow-Up & Style Coach")
 st.markdown(
-    "Carica la tua foto migliore (scattata con la fotocamera nativa del"
-    " telefono o scelta dalla galleria) per generare il tuo piano"
-    " personalizzato con **Pollinations AI**."
+    "Carica la tua foto migliore, genera il tuo piano di miglioramento"
+    " personalizzato e chatta liberamente con l'IA per qualsiasi consiglio!"
 )
 
 # Selezione della modalità di caricamento foto
@@ -42,7 +41,6 @@ scelta_foto = st.radio(
 )
 
 uploaded_image = None
-
 if scelta_foto == "📁 Carica dalla galleria / Fotocamera nativa":
   file_caricato = st.file_uploader(
       "Scegli l'immagine dal tuo dispositivo", type=["jpg", "jpeg", "png"]
@@ -54,61 +52,38 @@ else:
   if camera_file is not None:
     uploaded_image = Image.open(camera_file)
 
-# Se l'immagine è stata caricata/scattata, mostriamo l'anteprima e il form
+# Se l'immagine è stata caricata o scattata
 if uploaded_image is not None:
   st.image(
-      uploaded_image,
-      caption="Foto acquisita con successo",
-      use_container_width=True,
+      uploaded_image, caption="Foto acquisita con successo", use_container_width=True
   )
 
-  with st.form("glow_up_form"):
-    st.subheader("⚙️ Parametri Biometrici e di Stile")
+  # Inizializzazione della memoria di sessione per la chat e l'analisi
+  if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+  if "initial_analysis" not in st.session_state:
+    st.session_state.initial_analysis = ""
 
-    forma_viso = st.selectbox(
-        "Forma del viso principale:",
-        ["Ovale", "Quadrato", "Rotondo", "Allungato/Rettangolare", "A diamante"],
-    )
-
-    stile_capelli = st.text_input(
-        "Stile/Taglio di capelli attuale:",
-        placeholder="es. corti ai lati, medi mossi...",
-    )
-
-    obiettivo = st.text_input(
-        "Qual è il tuo obiettivo principale?",
-        placeholder="es. definire la mascella, migliorare la pelle, stile"
-        " cyberpunk...",
-    )
-
-    submit_button = st.form_submit_button("🚀 Genera Piano di Glow-Up Neurale")
-
-  if submit_button:
-    if not obiettivo:
-      st.warning("⚠️ Per favore, inserisci almeno il tuo obiettivo principale!")
-    else:
+  # Pulsante per avviare l'analisi iniziale se non è stata ancora fatta
+  if not st.session_state.initial_analysis:
+    if st.button("🚀 Avvia Analisi Neurale e Glow-Up"):
       with st.status(
-          "🔍 Analisi dei parametri nel cluster neurale...", expanded=True
+          "🔍 Connessione al cluster neurale di Pollinations...", expanded=True
       ) as status:
-        st.write("Connessione al motore generativo di Pollinations...")
-        import time
-
-        time.sleep(1)
-        st.write("Elaborazione fisionomica e creazione consigli mirati...")
-        time.sleep(1.2)
-
+        st.write(
+            "Elaborazione fisionomica e creazione del piano di"
+            " miglioramento..."
+        )
         try:
           prompt_base = (
-              f"Agisci come un consulente di immagine, stile, skincare e"
-              f" grooming personale di livello professionale. Adotta un tono"
-              f" cyberpunk, futuristico, motivazionale e costruttivo. L'utente"
-              f" ha una forma del viso {forma_viso}, i capelli"
-              f" {stile_capelli}, e il suo obiettivo principale è {obiettivo}."
-              f" Restituisci un piano di miglioramento dettagliato (Glow-Up)"
-              f" strutturato con: 1. Valutazione strutturale della fisionomia."
-              f" 2. Consigli mirati di skincare, taglio capelli e postura. 3."
-              f" Un piano d'azione pratico settimanale. Rispondi in italiano"
-              f" con una formattazione pulita, sezioni ed emoji."
+              "Agisci come un consulente di immagine, stile, skincare e"
+              " grooming personale di livello professionale. Adotta un tono"
+              " cyberpunk, futuristico, motivazionale e costruttivo. Genera un"
+              " piano di miglioramento completo (Glow-Up) strutturato con: 1."
+              " Analisi fisionomica e strutturale generale. 2. Consigli"
+              " avanzati di skincare, taglio capelli e postura. 3. Piano"
+              " d'azione pratico settimanale. Rispondi in italiano con una"
+              " formattazione pulita ed emoji."
           )
 
           url = (
@@ -116,25 +91,81 @@ if uploaded_image is not None:
               + requests.utils.quote(prompt_base)
               + "?model=openai"
           )
-          response = requests.get(url, timeout=25)
+          response = requests.get(url, timeout=35)
 
           if response.status_code == 200:
+            st.session_state.initial_analysis = response.text
             status.update(
-                label="✨ Piano di Glow-Up generato con successo!",
+                label="✨ Analisi completata con successo!",
                 state="complete",
                 expanded=False,
             )
-
-            st.markdown("---")
-            st.markdown("## 📊 Il Tuo Piano Ufficiale")
-            st.markdown(response.text)
+            st.rerun()
           else:
-            status.update(label="❌ Errore di comunicazione", state="error")
+            status.update(label="❌ Errore del server", state="error")
             st.error(
-                f"Errore del server (Status {response.status_code}). Riprova"
-                " tra un istante."
+                f"Errore di risposta dal server (Status {response.status_code})."
+                " Riprova tra un istante."
             )
 
         except Exception as e:
           status.update(label="❌ Errore di connessione", state="error")
-          st.error(f"Si è verificato un errore di rete: {e}")
+          st.error(
+              f"Tempo scaduto o errore di rete ({e}). Riprova a premere il"
+              " pulsante."
+          )
+
+  # Se l'analisi iniziale è presente, mostrala e attiva la chat interattiva
+  if st.session_state.initial_analysis:
+    st.markdown("---")
+    st.markdown("## 📊 Piano di Glow-Up Ufficiale")
+    st.markdown(st.session_state.initial_analysis)
+
+    st.markdown("---")
+    st.markdown("### 💬 Chatta con il tuo Style Coach IA")
+    st.write(
+        "Hai domande specifiche, vuoi consigli su prodotti, vestiti o"
+        " allenamento? Scrivi qui sotto!"
+    )
+
+    # Mostra la cronologia della chat
+    for message in st.session_state.chat_history:
+      with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+    # Casella di input per la chat in basso
+    if prompt_utente := st.chat_input("Fai una domanda all'IA..."):
+      st.session_state.chat_history.append(
+          {"role": "user", "content": prompt_utente}
+      )
+      with st.chat_message("user"):
+        st.markdown(prompt_utente)
+
+      with st.chat_message("assistant"):
+        with st.spinner("L'IA sta elaborando la risposta..."):
+          try:
+            chat_prompt = (
+                f"Contesto della consulenza precedente: L'utente ha ricevuto"
+                f" questo piano di glow-up:"
+                f" {st.session_state.initial_analysis[:400]}...\n\nDomanda"
+                f" attuale dell'utente: {prompt_utente}\n\nRispondi in"
+                " italiano come un esperto consulente di stile cyberpunk,"
+                " dando risposte pratiche e dirette."
+            )
+            chat_url = (
+                "https://text.pollinations.ai/"
+                + requests.utils.quote(chat_prompt)
+                + "?model=openai"
+            )
+            chat_resp = requests.get(chat_url, timeout=30)
+
+            if chat_resp.status_code == 200:
+              risposta_ia = chat_resp.text
+              st.markdown(risposta_ia)
+              st.session_state.chat_history.append(
+                  {"role": "assistant", "content": risposta_ia}
+              )
+            else:
+              st.error("Errore di comunicazione con il server dell'IA.")
+          except Exception as e:
+            st.error(f"Errore di connessione: {e}")
