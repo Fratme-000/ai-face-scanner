@@ -85,7 +85,7 @@ if camera_image is not None:
         try:
           # Configurazione e chiamata a Google Gemini (Multimodale)
           genai.configure(api_key=api_key)
-          model = genai.GenerativeModel("gemini-3.8-flash")
+          model = genai.GenerativeModel("gemini-3.6-flash")
 
           prompt = (
               "Agisci come un sistema di scansione biometrica ed estetica"
